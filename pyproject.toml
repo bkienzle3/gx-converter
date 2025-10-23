@@ -58,6 +58,9 @@ classifiers = [
 ]
 
 requires-python = '>3.9'
+dependencies = [
+    'Pillow',
+]
 
 [project.scripts]
 gx-converter = "gx_converter.main:main"

@@ -21,6 +21,11 @@ class GCodePropertyExtractor:
             Print time
         """
 
+        # Try Bambu/Orca style first: "; estimated printing time (normal mode) = 3h 34m 11s"
+        time_sec = GCodePropertyExtractor._extract_estimated_print_time(gcode)
+        if time_sec:
+            return time_sec
+        # Fallback to Cura style: ";TIME:399"
         return GCodePropertyExtractor._extract_comment_value("TIME", gcode)
 
     @staticmethod
@@ -34,6 +39,10 @@ class GCodePropertyExtractor:
             Layer height
         """
 
+        # Look for "default_print_profile = 0.20mm" first
+        height_microns = GCodePropertyExtractor._extract_layer_height_profile(gcode)
+        if height_microns:
+            return height_microns
         height = GCodePropertyExtractor._extract_comment_value("Layer height", gcode)
         return height * 10
 
@@ -48,6 +57,11 @@ class GCodePropertyExtractor:
             Filament usage
         """
 
+        # Parse Bambu/Orca style: "; filament used [mm] = 7114.77"
+        usage_mm = GCodePropertyExtractor._extract_filament_used_mm(gcode)
+        if usage_mm:
+            return usage_mm
+        # Fallback to Cura style: ";Filament used: 0.113383m"
         return GCodePropertyExtractor._extract_comment_value("Filament used", gcode)
 
     @staticmethod
@@ -138,3 +152,36 @@ class GCodePropertyExtractor:
                 break
 
         return value
+
+    @staticmethod
+    def _extract_estimated_print_time(gcode: str) -> int:
+        """
+        Extract print time in seconds from lines like:
+            "; estimated printing time (normal mode) = 3h 34m 11s"
+        """
+        match = search(r"estimated printing time.*?=\s*(\d+)h\s*(\d+)m\s*(\d+)s",
+                       gcode, RegexFlag.IGNORECASE)
+        if match:
+            h, m, s = match.groups()
+            return int(h) * 3600 + int(m) * 60 + int(s)
+        return 0
+
+    @staticmethod
+    def _extract_filament_used_mm(gcode: str) -> int:
+        """
+        Extract filament usage from lines like:
+            "; filament used [mm] = 7114.77"
+        Returns millimetres rounded to the nearest integer.
+        """
+        match = search(r"filament used \[mm\]\s*=\s*([\d.]+)", gcode, RegexFlag.IGNORECASE)
+        return int(round(float(match.group(1)))) if match else 0
+
+    @staticmethod
+    def _extract_layer_height_profile(gcode: str) -> int:
+        """
+        Extract layer height from lines like:
+            "default_print_profile = 0.20mm"
+        Returns microns.
+        """
+        match = search(r"default_print_profile\s*=\s*([\d.]+)mm", gcode, RegexFlag.IGNORECASE)
+        return int(round(float(match.group(1)) * 1000)) if match else 0

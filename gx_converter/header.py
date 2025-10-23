@@ -27,6 +27,11 @@ class Header:
     hotbed_temperature_degrees: int
     extruder_temp_degrees: int
 
+    # optional override for the BMP thumbnail.  When provided, this value will be
+    # used instead of the bundled `thumbnail.bmp`.  It must contain a complete
+    # 24‑bit BMP (80×60) including its 54‑byte header and pixel data.
+    thumbnail_override: bytes | None = None
+
     # byte values
     print_time_bytes: bytes = b""
     filament_usage_bytes: bytes = b""
@@ -51,8 +56,12 @@ class Header:
         )
         self.extruder_temp_bytes: bytes = pack("h", self.extruder_temp_degrees)
 
-        thumbnail = importlib.resources.files("gx_converter").joinpath("thumbnail.bmp")
-        self.thumbnail_bytes = thumbnail.read_bytes()
+        # Select thumbnail: use override if provided, otherwise fall back to bundled BMP.
+        if self.thumbnail_override is not None:
+            self.thumbnail_bytes = self.thumbnail_override
+        else:
+            thumbnail = importlib.resources.files("gx_converter").joinpath("thumbnail.bmp")
+            self.thumbnail_bytes = thumbnail.read_bytes()
         # with open(Path(thumbnail), "rb") as f:
         #     self.thumbnail_bytes = f.read()
 
